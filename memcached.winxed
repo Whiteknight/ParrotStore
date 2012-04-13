@@ -1,8 +1,7 @@
 $include "Rosella/Core.winxed";
-$include "Rosella/Ascii.winxed";
-$include "Rosella/Parse_builtins.winxed";
-$include "Rosella/Parse.winxed";
 $include "Rosella/Net.winxed";
+
+// See http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
 
 class ParrotStore.Memcached.ServerList
 {
@@ -21,11 +20,8 @@ class ParrotStore.Memcached.ServerList
         if (elements(self.servers) == 1)
             return self.servers[0];
         int sum = HASH_SEED;
-        :(key, var s, var b, int len) = Rosella.Parse.setup_parse(key);
-        while(have_more_chars(s, b)) {
-            int c = get_next(s, b);
+        for (int c in var(key))
             sum = sum ^ c;
-        }
         int num_servers = elements(self.servers);
         return self.servers[sum % num_servers];
     }
@@ -78,8 +74,33 @@ class ParrotStore.Memcached
 
     function set(string name, string value, int exptime = 0)
     {
+        return self.__store("set", name, value, exptime);
+    }
+
+    function add(string name, string value, int exptime = 0)
+    {
+        return self.__store("add", name, value, exptime);
+    }
+
+    function replace(string name, string value, int exptime = 0)
+    {
+        return self.__store("replace", name, value, exptime);
+    }
+
+    function append(string name, string value, int exptime = 0)
+    {
+        return self.__store("append", name, value, exptime);
+    }
+
+    function prepend(string name, string value, int exptime = 0)
+    {
+        return self.__store("prepend", name, value, exptime);
+    }
+
+    function __store(string cmd, string name, value, int exptime)
+    {
         var socket = self.__get_socket(name);
-        string header_msg = sprintf("set %s %d %d %d\r\n", [name, 0, exptime, bytelength(value)]);
+        string header_msg = sprintf("%s %s %d %d %d\r\n", [cmd, name, 0, exptime, bytelength(value)]);
         socket.puts(header_msg);
         socket.puts(value);
         socket.puts("\r\n");
@@ -117,7 +138,9 @@ class ParrotStore.Memcached
 function main[main](var args)
 {
     var memcached = new ParrotStore.Memcached(["localhost"]);
-    memcached.set("baz", "this is baz");
+    memcached.set("baz", "bar");
+    memcached.append("baz", "baz");
+    memcached.prepend("baz", "foo");
     :(int have, string c) = memcached.get("baz");
     say(have);
     say(c);
