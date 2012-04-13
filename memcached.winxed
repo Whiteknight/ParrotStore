@@ -1,0 +1,129 @@
+$include "Rosella/Core.winxed";
+$include "Rosella/Ascii.winxed";
+$include "Rosella/Parse_builtins.winxed";
+$include "Rosella/Parse.winxed";
+$include "Rosella/Net.winxed";
+
+class ParrotStore.Memcached.ServerList
+{
+    var servers;
+    const int HASH_SEED = 1234;
+
+    function ServerList(var servers)
+    {
+        if (elements(servers) == 0)
+            Rosella.Error.error("Must provide at least one memcached server");
+        self.servers = servers;
+    }
+
+    function select_server(string key)
+    {
+        if (elements(self.servers) == 1)
+            return self.servers[0];
+        int sum = HASH_SEED;
+        :(key, var s, var b, int len) = Rosella.Parse.setup_parse(key);
+        while(have_more_chars(s, b)) {
+            int c = get_next(s, b);
+            sum = sum ^ c;
+        }
+        int num_servers = elements(self.servers);
+        return self.servers[sum % num_servers];
+    }
+}
+
+class ParrotStore.Memcached
+{
+    var serverlist;
+    var socketfactory;
+
+    function Memcached(var servers)
+    {
+        self.serverlist = new ParrotStore.Memcached.ServerList(servers);
+        self.socketfactory = Rosella.Net.tcp_socket_factory();
+    }
+
+    function get(string name)
+    {
+        var socket = self.__get_socket(name);
+        socket.puts("get " + name + "\r\n");
+        string status_line = socket.readline();
+        var parts = split(" ", status_line);
+        if (elements(parts) == 0) {
+            self.__cleanup_socket(socket);
+            return false, "";
+        }
+        string status = parts[0];
+        if (length(status) >= 3 && substr(status, 0, 3) == "END") {
+            self.__cleanup_socket(socket);
+            return false, "";
+        }
+        if (status == "VALUE")
+        string rename = parts[1];
+        int flags = int(parts[2]);
+        int bytes = int(parts[3]);
+        string content = socket.read(bytes);
+        self.__cleanup_socket(socket);
+        return true, content;
+    }
+
+    function autoget(string name, var f, int exptime = 0)
+    {
+        :(int have, string value) = self.get(name);
+        if (have)
+            return value;
+        value = f();
+        self.set(name, value, 0);
+        return value;
+    }
+
+    function set(string name, string value, int exptime = 0)
+    {
+        var socket = self.__get_socket(name);
+        string header_msg = sprintf("set %s %d %d %d\r\n", [name, 0, exptime, bytelength(value)]);
+        socket.puts(header_msg);
+        socket.puts(value);
+        socket.puts("\r\n");
+        string status_line = socket.readline();
+        self.__cleanup_socket(socket);
+        if (status_line == "STORED")
+            return true;
+        return false;
+    }
+
+    function delete(string name)
+    {
+        var socket = self.__get_socket(name);
+        socket.puts("delete " + name + "\r\n");
+        string status_line = socket.readline();
+        self.__cleanup_socket(socket);
+        if (status_line == "DELETED")
+            return true;
+        return false;
+    }
+
+    function __get_socket(string name)
+    {
+        string server = self.serverlist.select_server(name);
+        // TODO: Get the port number for the server url
+        return self.socketfactory.create(server, 11211);
+    }
+
+    function __cleanup_socket(var socket)
+    {
+        socket.close();
+    }
+}
+
+function main[main](var args)
+{
+    var memcached = new ParrotStore.Memcached(["localhost"]);
+    memcached.set("baz", "this is baz");
+    :(int have, string c) = memcached.get("baz");
+    say(have);
+    say(c);
+    memcached.delete("baz");
+    :(have, c) = memcached.get("baz");
+    say(have);
+    say(c);
+
+}
