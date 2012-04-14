@@ -1,0 +1,9 @@
+parrotstore/*
+mongodb/pmc/*.c
+mongodb/pmc/*.o
+mongodb/pmc/*.dump
+mongodb/pmc/*.h
+mysql/pmc/*.c
+mysql/pmc/*.o
+mysql/pmc/*.dump
+mysql/pmc/*.h
