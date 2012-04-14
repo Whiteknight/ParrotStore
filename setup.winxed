@@ -1,0 +1,70 @@
+$include "Rosella/Core.winxed";
+$include "Rosella/Winxed.winxed";
+
+function setup_memcached(var parrotstore, var argv)
+{
+    parrotstore["winxed_winxed"]["parrotstore/memcached.winxed"] = [
+        "memcached/Includes.winxed",
+        "memcached/Memcached.winxed",
+        "memcached/ServerList.winxed"
+    ];
+    parrotstore["pir_winxed"]["parrotstore/memcached.pir"] = "parrotstore/memcached.winxed";
+    parrotstore["pbc_pir"]["parrotstore/memcached.pbc"] = "parrotstore/memcached.pir";
+}
+
+function setup_main(var parrotstore, string target, var argv)
+{
+    switch (target) {
+        case "memcached":
+            setup_memcached(parrotstore, argv);
+            break;
+    }
+}
+
+function main[main](var argv)
+{
+    int exit_code = 0;
+    string programname = argv.shift();
+    var parrotstore = __get_distutils_data();
+    try {
+        Rosella.Winxed.Distutils.winxed_setup();
+        string libtarget = argv.shift();
+        setup_main(parrotstore, libtarget, argv);
+        setup(argv, parrotstore);
+    } catch (e) {
+        say(e["message"]);
+        for (string bt in e.backtrace_strings())
+            say(bt);
+        exit_code = 1;
+    }
+    if (exit_code != 0)
+        exit(exit_code);
+}
+
+function __get_distutils_data()
+{
+    return {
+        "name"              : 'ParrotStore',
+        "abstract"          : 'Library for Parrot database, cache and persistance',
+        "authority"         : 'http://github.com/Whiteknight',
+        "copyright_holder"  : 'Andrew Whitworth',
+        "keywords"          : ["memcached", "database", "persistance"],
+        "license_type"      : 'Artistic License 2.0',
+        "license_uri"       : 'http://www.perlfoundation.org/artistic_license_2_0',
+        "checkout_uri"      : 'git://github.com/Whiteknight/ParrotStore.git',
+        "browser_uri"       : 'git://github.com/Whiteknight/ParrotStore',
+        "project_uri"       : 'git://github.com/Whiteknight/ParrotStore',
+        "pir_nqp-rx"        : {},
+        "pir_winxed"        : {},
+        "pbc_pbc"           : {},
+        "pbc_pir"           : {},
+        "pir_pir"           : {},
+        "winxed_debug"      : false,
+        "winxed_winxed"     : {},
+        "inst_lib"          : [],
+        "installable_pbc"   : {},
+        "include_winxed"    : {},
+        "manifest_includes" : ["README.md", "setup.winxed"]
+    };
+}
+

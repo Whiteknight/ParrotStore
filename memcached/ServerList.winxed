@@ -1,0 +1,23 @@
+class ParrotStore.Memcached.ServerList
+{
+    var servers;
+    const int HASH_SEED = 1234;
+
+    function ServerList(var servers)
+    {
+        if (elements(servers) == 0)
+            Rosella.Error.error("Must provide at least one memcached server");
+        self.servers = servers;
+    }
+
+    function select_server(string key)
+    {
+        if (elements(self.servers) == 1)
+            return self.servers[0];
+        int sum = HASH_SEED;
+        for (int c in var(key))
+            sum = sum ^ c;
+        int num_servers = elements(self.servers);
+        return self.servers[sum % num_servers];
+    }
+}
