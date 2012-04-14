@@ -36,7 +36,8 @@ pmclass MySQLDbContext dynpmc auto_attrs {
         Parrot_free_cstring(cpassword);
         if (cdb)
             Parrot_free_cstring(cdb);
-        if (stat)
+
+        if (!stat)
             Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     }
 
