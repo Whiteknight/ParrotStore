@@ -1,0 +1,6 @@
+pmclass DataTable {
+    ATTR PMC *colnames;
+    ATTR void *data;
+
+
+}

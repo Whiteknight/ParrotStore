@@ -1,0 +1,54 @@
+pmclass MySQLDbContext {
+    ATTR MYSQL *conn;
+
+    VTABLE void init() {
+        MYSQL * const conn = msql_init(NULL);
+        PARROT_MYSQLDBCONTEXT(SELF)->conn = conn;
+    }
+
+    VTABLE void destroy() {
+        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        if (conn) {
+            msql_close(conn);
+        }
+    }
+
+    METHOD connect(STRING *server, STRING *username, STRING *password, STRING *db, INTVAL port, INTVAL client_flag) {
+        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        char * const cserver = Parrot_str_to_c_string(INTERP, server);
+        char * const cusername = Parrot_str_to_c_string(INTERP, username);
+        char * const cpassword = Parrot_str_to_c_string(INTERP, password);
+        char * const cdb = db == STRINGNULL ? NULL : Parrot_str_to_c_string(INTERP, db);
+
+        INTVAL stat = mysql_real_connect(conn, cserver, cusername, cpassword, cdb, port, NULL, client_flag);
+        Parrot_free_cstring(cserver);
+        Parrot_free_cstring(cusername);
+        Parrot_free_cstring(cpassword);
+        if (cdb)
+            Parrot_free_cstring(cdb);
+        if (stat)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+    }
+
+    METHOD query_no_result(STRING * query) {
+        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        INTVAL stat;
+        STRING_TO_CSTRING(INTERP, query, cquery,
+            stat = mysql_query(conn, cquery);
+        );
+
+        if (stat)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+    }
+
+    METHOD query(STRING * query) {
+        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        INTVAL stat;
+        STRING_TO_CSTRING(INTERP, query, cquery,
+            stat = mysql_query(conn, cquery);
+        );
+
+        if (stat)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+    }
+}
