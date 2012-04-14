@@ -92,4 +92,15 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
     {
         return (INTVAL)Parrot_hash_get(INTERP, PARROT_MYSQLDATATABLE(SELF)->colnames, (void*)colname);
     }
+
+    VTABLE PMC *get_iter()
+    {
+        return SELF;
+    }
+
+    VTABLE void set_integer_native(INTVAL iter_dir)
+    {
+        // This is necessary for the iterator interface
+        UNUSED(iter_dir);
+    }
 }
