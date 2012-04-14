@@ -1,0 +1,95 @@
+#include "ps_mysql.h"
+#define GET_RESULT(s) ((MYSQL_RES*)PARROT_MYSQLDATATABLE(s)->result)
+#define GET_COLNAMES(s) (PARROT_MYSQLDATATABLE(s)->colnames)
+
+INTVAL MySqlDataTable_type;
+
+pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
+    ATTR Hash *colnames;
+    ATTR void *result;
+    ATTR void *current_row;
+    ATTR void *current_row_lengths;
+    ATTR INTVAL num_fields;
+
+    void class_init() {
+        MySqlDataTable_type = entry;
+    }
+
+    VTABLE void init()
+    {
+        PObj_custom_mark_destroy_SETALL(SELF);
+    }
+
+    VTABLE void set_pointer(void *rawptr)
+    {
+        MYSQL_RES * const result = (MYSQL_RES*)rawptr;
+        INTVAL num_fields = mysql_num_fields(result);
+        Hash * const colnames = Parrot_hash_create_sized(INTERP, enum_hash_int, Hash_key_type_STRING, num_fields);
+        MYSQL_FIELD *field;
+
+        INTVAL idx = 0;
+        while(field = mysql_fetch_field(result)) {
+            STRING * const colnamestr = Parrot_str_new(INTERP, field->name, 0);
+            Parrot_hash_put(INTERP, colnames, (void*)colnamestr, (void*)idx);
+            idx++;
+        }
+
+        PARROT_MYSQLDATATABLE(SELF)->colnames = colnames;
+        PARROT_MYSQLDATATABLE(SELF)->result = rawptr;
+        PARROT_MYSQLDATATABLE(SELF)->current_row = mysql_fetch_row(result);
+        PARROT_MYSQLDATATABLE(SELF)->current_row_lengths = mysql_fetch_lengths(result);
+        PARROT_MYSQLDATATABLE(SELF)->num_fields = num_fields;
+    }
+
+    VTABLE void mark()
+    {
+        Hash * const colnames = GET_COLNAMES(SELF);
+        if (colnames)
+            Parrot_hash_mark(INTERP, colnames);
+    }
+
+    VTABLE void* get_pointer()
+    {
+        MYSQL_RES * const result = GET_RESULT(SELF);
+        return result;
+    }
+
+    VTABLE void destroy()
+    {
+        MYSQL_RES * const result = GET_RESULT(SELF);
+        if (result)
+            mysql_free_result(result);
+    }
+
+    VTABLE INTVAL get_bool()
+    {
+        return PARROT_MYSQLDATATABLE(SELF)->current_row != NULL;
+    }
+
+    VTABLE PMC* shift_pmc()
+    {
+        Parrot_MySqlDataTable_attributes * const attrs = PARROT_MYSQLDATATABLE(SELF);
+        if (!attrs->current_row)
+            return PMCNULL;
+        else {
+            MYSQL_ROW row = attrs->current_row;
+            unsigned long * field_lengths = PARROT_MYSQLDATATABLE(SELF)->current_row_lengths;
+            INTVAL num_fields = PARROT_MYSQLDATATABLE(SELF)->num_fields;
+            PMC * const rowpmc = Parrot_pmc_new_init(INTERP, MySqlDataRow_type, SELF);
+            PMC * const data = Parrot_pmc_new_init_int(INTERP, enum_class_FixedStringArray, num_fields);
+            INTVAL i = 0;
+            for (; i < num_fields; i++) {
+                STRING * const field_val = Parrot_str_new_init(INTERP, row[i], (INTVAL)field_lengths[i], Parrot_binary_encoding_ptr, 0);
+                VTABLE_set_string_keyed_int(INTERP, data, i, field_val);
+            }
+            VTABLE_set_pmc(INTERP, rowpmc, data);
+            attrs->current_row = mysql_fetch_row((MYSQL_RES*)attrs->result);
+            return rowpmc;
+        }
+    }
+
+    VTABLE INTVAL get_integer_keyed_str(STRING *colname)
+    {
+        return (INTVAL)Parrot_hash_get(INTERP, PARROT_MYSQLDATATABLE(SELF)->colnames, (void*)colname);
+    }
+}

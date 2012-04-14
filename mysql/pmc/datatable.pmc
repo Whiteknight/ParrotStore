@@ -1,6 +1,0 @@
-pmclass DataTable dynpmc auto_attrs {
-    ATTR PMC *colnames;
-    ATTR void *data;
-
-
-}

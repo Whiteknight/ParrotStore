@@ -1,0 +1,67 @@
+#include "ps_mysql.h"
+
+INTVAL MySqlDataRow_type;
+
+pmclass MySqlDataRow dynpmc auto_attrs provides array provides hash {
+    ATTR PMC *table;
+    ATTR PMC *data;
+
+    void class_init() {
+        MySqlDataRow_type = entry;
+    }
+
+    VTABLE void init_pmc(PMC *table)
+    {
+        PARROT_MYSQLDATAROW(SELF)->table = table;
+        PObj_custom_mark_SET(SELF);
+    }
+
+    VTABLE void mark()
+    {
+        Parrot_MySqlDataRow_attributes * const attr = PARROT_MYSQLDATAROW(SELF);
+        if (!PMC_IS_NULL(attr->table))
+            Parrot_gc_mark_PMC_alive(INTERP, attr->table);
+        if (!PMC_IS_NULL(attr->data))
+            Parrot_gc_mark_PMC_alive(INTERP, attr->data);
+    }
+
+    VTABLE void set_pmc(PMC *data)
+    {
+        PARROT_MYSQLDATAROW(SELF)->data = data;
+    }
+
+    VTABLE STRING * get_string_keyed_int(INTVAL idx)
+    {
+        return VTABLE_get_string_keyed_int(INTERP, PARROT_MYSQLDATAROW(SELF)->data, idx);
+    }
+
+    VTABLE STRING * get_string_keyed_str(STRING *colname)
+    {
+        const INTVAL idx = VTABLE_get_integer_keyed_str(INTERP, PARROT_MYSQLDATAROW(SELF)->table, colname);
+        return VTABLE_get_string_keyed_int(INTERP, SELF, idx);
+    }
+
+    VTABLE STRING * get_string_keyed(PMC *key)
+    {
+        STRING * const colname = VTABLE_get_string(INTERP, key);
+        return VTABLE_get_string_keyed_str(INTERP, SELF, colname);
+    }
+
+    VTABLE PMC *get_pmc_keyed(PMC *key)
+    {
+        STRING * const colname = VTABLE_get_string(INTERP, key);
+        return VTABLE_get_pmc_keyed_str(INTERP, SELF, colname);
+    }
+
+    VTABLE PMC * get_pmc_keyed_str(STRING *colname)
+    {
+        STRING * const value = VTABLE_get_string_keyed_str(INTERP, SELF, colname);
+        return Parrot_pmc_box_string(INTERP, value);
+    }
+
+    VTABLE PMC *get_pmc_keyed_int(INTVAL idx)
+    {
+        STRING * const value = VTABLE_get_string_keyed_int(INTERP, SELF, idx);
+        return Parrot_pmc_box_string(INTERP, value);
+    }
+}

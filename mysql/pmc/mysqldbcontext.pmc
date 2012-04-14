@@ -1,13 +1,5 @@
-#include <mysql/mysql.h>
+#include "ps_mysql.h"
 #define GET_CONN(s) ((MYSQL*)PARROT_MYSQLDBCONTEXT(s)->conn)
-
-#define STRING_TO_CSTRING(i, s, c, code) do { \
-    char * (c) = Parrot_str_to_cstring((i), (s)); \
-    { \
-        code \
-    } \
-    Parrot_str_free_cstring((c)); \
-} while(0)
 
 pmclass MySQLDbContext dynpmc auto_attrs {
     ATTR void *conn;
@@ -15,6 +7,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
     VTABLE void init() {
         MYSQL * const conn = mysql_init(NULL);
         PARROT_MYSQLDBCONTEXT(SELF)->conn = (void*)conn;
+        PObj_custom_destroy_SET(SELF);
     }
 
     VTABLE void destroy() {
@@ -43,7 +36,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
 
     METHOD query_no_result(STRING * query) {
         MYSQL * const conn = GET_CONN(SELF);
-        int len = Parrot_str_byte_length(INTERP, query);
+        INTVAL len = Parrot_str_byte_length(INTERP, query);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, query, cquery,
             stat = mysql_real_query(conn, cquery, len);
@@ -55,12 +48,19 @@ pmclass MySQLDbContext dynpmc auto_attrs {
 
     METHOD query(STRING * query) {
         MYSQL * const conn = GET_CONN(SELF);
+        INTVAL len = Parrot_str_byte_length(INTERP, query);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, query, cquery,
-            stat = mysql_query(conn, cquery);
+            stat = mysql_real_query(conn, cquery, len);
         );
 
         if (stat)
             Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+        else {
+            MYSQL_RES * const result = mysql_use_result(conn);
+            PMC * const table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
+            VTABLE_set_pointer(INTERP, table, result);
+            RETURN(PMC * table);
+        }
     }
 }

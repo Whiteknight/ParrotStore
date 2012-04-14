@@ -15,10 +15,12 @@ function setup_memcached(var parrotstore, var argv)
 
 function setup_mysql(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g";
+    parrotstore["dynpmc_cflags"] = "-g -I./mysql/include";
     parrotstore["dynpmc_ldflags"] = "-lmysqlclient";
     parrotstore["dynpmc"]["mysql_group"] = [
-        "mysql/pmc/mysqldbcontext.pmc"
+        "mysql/pmc/mysqldbcontext.pmc",
+        "mysql/pmc/mysqldatatable.pmc",
+        "mysql/pmc/mysqldatarow.pmc"
     ];
 }
 
