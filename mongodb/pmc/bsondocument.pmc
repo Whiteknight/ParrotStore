@@ -1,0 +1,83 @@
+#define GET_BSON(s) (PARROT_BSONDOCUMENT(s)->b)
+
+pmclass BsonDocument {
+    ATTR bson *b;
+
+    VTABLE void init()
+    {
+        bson * const b = (bson*)malloc(sizeof(bson));
+        PARROT_BSONDOCUMENT(SELF)->b = b;
+        bson_init(b);
+    }
+
+    VTABLE void destroy()
+    {
+        bson * old_b = GET_BSON(SELF);
+        if (old_b) {
+            bson_destroy(old_b);
+            free(old_b);
+        }
+    }
+
+    VTABLE void *get_pointer()
+    {
+        return PARROT_BSONDOCUMENT(SELF)->b;
+    }
+
+    VTABLE void set_pointer(void *b)
+    {
+        bson * old_b = GET_BSON(SELF);
+        if (old_b) {
+            bson_destroy(old_b);
+            free(old_b);
+        }
+        PARROT_BSONDOCUMENT(SELF)->b = b;
+    }
+
+    METHOD append_new_oid(STRING *name)
+    {
+        STRING_TO_CSTRING(INTERP, name, str,
+            bson_append_new_oid(GET_BSON(SELF), str);
+        );
+    }
+
+    METHOD append_start_array(STRING *name)
+    {
+        STRING_TO_CSTRING(INTERP, name, str,
+            bson_append_start_array(GET_BSON(SELF), str);
+        );
+    }
+
+    METHOD append_start_object(STRING *name)
+    {
+        STRING_TO_CSTRING(INTERP, name, str,
+            bson_append_start_object(GET_BSON(SELF), str);
+        );
+    }
+
+    METHOD append_finish_object(STRING *name)
+    {
+        bson_append_finish_object(GET_BSON(SELF));
+    }
+
+    METHOD append_int(STRING *name, INTVAL value)
+    {
+        STRING_TO_CSTRING(INTERP, name, str,
+            bson_append_int(GET_BSON(SELF), str, value);
+        );
+    }
+
+    METHOD append_string(STRING *name, STRING *value)
+    {
+        STRING_TO_CSTRING(INTERP, name, nstr,
+            STRING_TO_CSTRING(INTERP, value, vstr,
+                bson_append_string(GET_BSON(SELF), nstr, vstr);
+            );
+        );
+    }
+
+    METHOD finish()
+    {
+        bson_finish(GET_BSON(SELF));
+    }
+}

@@ -1,0 +1,58 @@
+class ParrotStore.MongoDB.JsonToBsonBuilder : Rosella.Json.Builder
+{
+    var bson_builder;
+
+    function JsonToBsonBuilder()
+    {
+        self.bson_builder = new 'BsonDocument';
+    }
+
+    function start_array(string name)
+    {
+        self.bson_builder.append_start_array(name);
+    }
+
+    function end_array()
+    {
+        self.bson_builder.append_end_object();
+    }
+
+    function start_object(string name)
+    {
+        self.bson_builder.append_start_object(name);
+    }
+
+    function end_object()
+    {
+        self.bson_builder.append_end_object();
+    }
+
+    function add_string(string name, string value)
+    {
+        self.bson_builder.append_string(name, value);
+    }
+
+    function add_integer(string name, int value)
+    {
+        self.bson_builder.append_int(name, value);
+    }
+
+    function add_number(string name, float value)
+    {
+        self.bson_builder.append_float(name, value);
+    }
+
+    function add_boolean(string name, int value)
+    {
+    }
+
+    function add_null(string name)
+    {
+    }
+
+    function get_value()
+    {
+        self.bson_builder.finish();
+        return self.bson_builder;
+    }
+}

@@ -1,0 +1,46 @@
+pmclass MongoDbContext {
+    ATTR mongo *conn;
+
+    VTABLE void init() {
+        mongo * conn = (mongo *)malloc(sizeof(conn));
+        PARROT_MONGODBCONTEXT(SELF)->conn = conn;
+    }
+
+    VTABLE void destroy() {
+        mongo * conn = PARROT_MONGODBCONTEXT(SELF)->conn;
+        if (conn) {
+            mongo_destroy(conn);
+            free(conn);
+        }
+    }
+
+    METHOD connect(STRING * server, INTVAL port)
+    {
+        mongo * conn = PARROT_MONGODBCONTEXT(SELF)->conn;
+        INTVAL stat;
+        STRING_TO_CSTRING(INTERP, server, cserver,
+            stat = mongo_connect(conn, cserver, port);
+        );
+        if (stat) {
+            switch(conn.err) {
+                case MONGO_CONN_NO_SOCKET:
+                    Parrot_ex_throw_from_c_args(INTERP, 0, NULL, "Could not connect to server %s:%d, could not create a socket", cserver, port);
+                    break;
+                case MONGO_CONN_FAIL:
+                    Parrot_ex_throw_from_c_args(INTERP, 0, NULL, "Could not connect to server %s:%d, mongodb might not be listening", cserver, port);
+                    break;
+            }
+        }
+    }
+
+    METHOD insert(STRING *collection, PMC * bson_doc)
+    {
+        mongo * conn = PARROT_MONGODBCONTEXT(SELF)->conn;
+        INTVAL stat;
+        STRING_TO_CSTRING(INTERP, collection, cc,
+            stat = mongo_insert(conn, cc, VTABLE_get_pointer(INTERP, bson_doc));
+        );
+        if (stat)
+            Parrot_ex_throw_from_c_args(INTERP, 0, NULL, "Failed to insert document with error %d", conn.err);
+    }
+}
