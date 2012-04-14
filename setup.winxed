@@ -15,7 +15,8 @@ function setup_memcached(var parrotstore, var argv)
 
 function setup_mongodb(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g mongodb/mongo-c-driver/src -I./mongodb/mongo-c-driver/src -I./mongodb/include";
+    parrotstore["dynpmc_cflags"] = "-g -I./mongodb/mongo-c-driver/src -I./mongodb/include";
+    parrotstore["dynpmc_ldflags"] = "mongodb/mongo-c-driver/libbson.a mongodb/mongo-c-driver/libmongoc.a";
     parrotstore["dynpmc"]["mongodb_group"] = [
         "mongodb/pmc/mongodbcontext.pmc",
         "mongodb/pmc/bsondocument.pmc"

@@ -82,4 +82,9 @@ pmclass BsonDocument dynpmc auto_attrs {
     {
         bson_finish(GET_BSON(SELF));
     }
+
+    METHOD print()
+    {
+        bson_print(GET_BSON(SELF));
+    }
 }
