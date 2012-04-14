@@ -43,9 +43,10 @@ pmclass MySQLDbContext dynpmc auto_attrs {
 
     METHOD query_no_result(STRING * query) {
         MYSQL * const conn = GET_CONN(SELF);
+        int len = Parrot_str_byte_length(INTERP, query);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, query, cquery,
-            stat = mysql_query(conn, cquery);
+            stat = mysql_real_query(conn, cquery, len);
         );
 
         if (stat)
