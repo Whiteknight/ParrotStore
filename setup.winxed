@@ -10,6 +10,7 @@ function setup_memcached(var parrotstore, var argv)
     ];
     parrotstore["pir_winxed"]["parrotstore/memcached.pir"] = "parrotstore/memcached.winxed";
     parrotstore["pbc_pir"]["parrotstore/memcached.pbc"] = "parrotstore/memcached.pir";
+    parrotstore["inst_lib"].push("parrotstore/memcached.pbc"];
 }
 
 function setup_main(var parrotstore, string target, var argv)
@@ -64,6 +65,7 @@ function __get_distutils_data()
         "inst_lib"          : [],
         "installable_pbc"   : {},
         "include_winxed"    : {},
+        "inst_wxheader"     : [],
         "manifest_includes" : ["README.md", "setup.winxed"]
     };
 }
