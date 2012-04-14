@@ -1,9 +1,8 @@
-#include "mongo.h"
 
-#define STRING_TO_C_STRING(i, s, c, code) do { \
-    char * (c) = Parrot_str_to_c_string((i), (s)); \
+#define STRING_TO_CSTRING(i, s, c, code) do { \
+    char * (c) = Parrot_str_to_cstring((i), (s)); \
     { \
         code \
     } \
-    Parrot_str_free_c_string((c)); \
+    Parrot_str_free_cstring((c)); \
 } while(0)

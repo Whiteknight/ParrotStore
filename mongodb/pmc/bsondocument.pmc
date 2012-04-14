@@ -1,12 +1,14 @@
-#define GET_BSON(s) (PARROT_BSONDOCUMENT(s)->b)
+#include "mongo.h"
+#include "ps_mongodb.h"
+#define GET_BSON(s) ((bson*)PARROT_BSONDOCUMENT(s)->b)
 
-pmclass BsonDocument {
-    ATTR bson *b;
+pmclass BsonDocument dynpmc auto_attrs {
+    ATTR void *b;
 
     VTABLE void init()
     {
         bson * const b = (bson*)malloc(sizeof(bson));
-        PARROT_BSONDOCUMENT(SELF)->b = b;
+        PARROT_BSONDOCUMENT(SELF)->b = (void*)b;
         bson_init(b);
     }
 
