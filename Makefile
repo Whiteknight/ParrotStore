@@ -1,4 +1,4 @@
-all: memcached mongodb
+all: memcached mysql
 
 clean: clean_memcached clean_mongodb
 
@@ -19,11 +19,8 @@ parrotstore/memcached.pbc: memcached/
 
 ## MongoDB
 
-mongodb: mongocdriver mongodb/*.winxed mongodb/pmc/*.pmc mongodb/include/*.h mongodb/mongo-c-driver/*
+mongodb: mongodb/*.winxed mongodb/pmc/*.pmc mongodb/include/*.h
 	winxed setup.winxed mongodb build
-
-mongocdriver:
-	scons --directory=./mongodb/mongo-c-driver/
 
 clean_mongodb:
 	winxed setup.winxed mongodb clean
@@ -31,5 +28,15 @@ clean_mongodb:
 install_mongodb:
 	winxed setup.winxed mongodb install
 
+# MySQL
+
+mysql: mysql/pmc/*.pmc
+	winxed setup.winxed mysql build
+
+clean_mysql:
+	winxed setup.winxed mysql clean
+
+install_mysql:
+	winxed setup.winxed mysql install
 
 

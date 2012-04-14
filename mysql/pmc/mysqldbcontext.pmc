@@ -1,24 +1,34 @@
-pmclass MySQLDbContext {
-    ATTR MYSQL *conn;
+#include <mysql/mysql.h>
+#define GET_CONN(s) ((MYSQL*)PARROT_MYSQLDBCONTEXT(s)->conn)
+
+#define STRING_TO_CSTRING(i, s, c, code) do { \
+    char * (c) = Parrot_str_to_cstring((i), (s)); \
+    { \
+        code \
+    } \
+    Parrot_str_free_cstring((c)); \
+} while(0)
+
+pmclass MySQLDbContext dynpmc auto_attrs {
+    ATTR void *conn;
 
     VTABLE void init() {
-        MYSQL * const conn = msql_init(NULL);
-        PARROT_MYSQLDBCONTEXT(SELF)->conn = conn;
+        MYSQL * const conn = mysql_init(NULL);
+        PARROT_MYSQLDBCONTEXT(SELF)->conn = (void*)conn;
     }
 
     VTABLE void destroy() {
-        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
-        if (conn) {
-            msql_close(conn);
-        }
+        MYSQL * const conn = GET_CONN(SELF);
+        if (conn)
+            mysql_close(conn);
     }
 
     METHOD connect(STRING *server, STRING *username, STRING *password, STRING *db, INTVAL port, INTVAL client_flag) {
-        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
-        char * const cserver = Parrot_str_to_c_string(INTERP, server);
-        char * const cusername = Parrot_str_to_c_string(INTERP, username);
-        char * const cpassword = Parrot_str_to_c_string(INTERP, password);
-        char * const cdb = db == STRINGNULL ? NULL : Parrot_str_to_c_string(INTERP, db);
+        MYSQL * const conn = GET_CONN(SELF);
+        char * const cserver = Parrot_str_to_cstring(INTERP, server);
+        char * const cusername = Parrot_str_to_cstring(INTERP, username);
+        char * const cpassword = Parrot_str_to_cstring(INTERP, password);
+        char * const cdb = db == STRINGNULL ? NULL : Parrot_str_to_cstring(INTERP, db);
 
         INTVAL stat = mysql_real_connect(conn, cserver, cusername, cpassword, cdb, port, NULL, client_flag);
         Parrot_free_cstring(cserver);
@@ -31,7 +41,7 @@ pmclass MySQLDbContext {
     }
 
     METHOD query_no_result(STRING * query) {
-        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        MYSQL * const conn = GET_CONN(SELF);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, query, cquery,
             stat = mysql_query(conn, cquery);
@@ -42,7 +52,7 @@ pmclass MySQLDbContext {
     }
 
     METHOD query(STRING * query) {
-        MYSQL * const conn = PARROT_MYSQLDBCONTEXT(SELF)->conn;
+        MYSQL * const conn = GET_CONN(SELF);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, query, cquery,
             stat = mysql_query(conn, cquery);

@@ -13,10 +13,19 @@ function setup_memcached(var parrotstore, var argv)
     parrotstore["inst_lib"].push("parrotstore/memcached.pbc");
 }
 
+function setup_mysql(var parrotstore, var argv)
+{
+    parrotstore["dynpmc_cflags"] = "-g";
+    parrotstore["dynpmc_ldflags"] = "-lmysqlclient";
+    parrotstore["dynpmc"]["mysql_group"] = [
+        "mysql/pmc/mysqldbcontext.pmc"
+    ];
+}
+
 function setup_mongodb(var parrotstore, var argv)
 {
     parrotstore["dynpmc_cflags"] = "-g -I./mongodb/mongo-c-driver/src -I./mongodb/include";
-    parrotstore["dynpmc_ldflags"] = "mongodb/mongo-c-driver/libbson.a mongodb/mongo-c-driver/libmongoc.a";
+    parrotstore["dynpmc_ldflags"] = "-lbson -lmongoc";
     parrotstore["dynpmc"]["mongodb_group"] = [
         "mongodb/pmc/mongodbcontext.pmc",
         "mongodb/pmc/bsondocument.pmc"
@@ -38,6 +47,9 @@ function setup_main(var parrotstore, string target, var argv)
             break;
         case "mongodb":
             setup_mongodb(parrotstore, argv);
+            break;
+        case "mysql":
+            setup_mysql(parrotstore, argv);
             break;
     }
 }
