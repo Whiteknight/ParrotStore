@@ -1,3 +1,6 @@
+// TODO: gets and cas
+// TODO: flush_all
+// TODO: stats
 class ParrotStore.Memcached
 {
     var serverlist;
