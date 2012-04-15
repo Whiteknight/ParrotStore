@@ -69,4 +69,16 @@ pmclass MySqlDataRow dynpmc auto_attrs provides array provides hash {
     {
         return VTABLE_elements(INTERP, PARROT_MYSQLDATAROW(SELF)->data);
     }
+
+    VTABLE PMC *get_iter()
+    {
+        return Parrot_pmc_new_init(INTERP, enum_class_HashIterator, SELF);
+    }
+
+    VTABLE void * get_pointer()
+    {
+        // Return a pointer to the Hash* representing the column hash. Currently
+        // we get that from the table. This interface is required by HashIterator.
+        return VTABLE_get_pointer_keyed(INTERP, PARROT_MYSQLDATAROW(SELF)->table, SELF);
+    }
 }

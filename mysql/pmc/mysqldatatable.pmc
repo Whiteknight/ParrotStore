@@ -48,12 +48,6 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
             Parrot_hash_mark(INTERP, colnames);
     }
 
-    VTABLE void* get_pointer()
-    {
-        MYSQL_RES * const result = GET_RESULT(SELF);
-        return result;
-    }
-
     VTABLE void destroy()
     {
         MYSQL_RES * const result = GET_RESULT(SELF);
@@ -102,5 +96,12 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
     {
         // This is necessary for the iterator interface
         UNUSED(iter_dir);
+    }
+
+    VTABLE void *get_pointer_keyed(PMC *row)
+    {
+        // For iterating rows, we need an easy way to get a pointer to the colnames
+        // hash. In the future we should find a better way to do it.
+        return PARROT_MYSQLDATATABLE(SELF)->colnames;
     }
 }
