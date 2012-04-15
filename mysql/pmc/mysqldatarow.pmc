@@ -5,6 +5,7 @@ INTVAL MySqlDataRow_type;
 pmclass MySqlDataRow dynpmc auto_attrs provides array provides hash {
     ATTR PMC *table;
     ATTR PMC *data;
+    ATTR INTVAL row_index;
 
     void class_init() {
         MySqlDataRow_type = entry;
@@ -23,6 +24,16 @@ pmclass MySqlDataRow dynpmc auto_attrs provides array provides hash {
             Parrot_gc_mark_PMC_alive(INTERP, attr->table);
         if (!PMC_IS_NULL(attr->data))
             Parrot_gc_mark_PMC_alive(INTERP, attr->data);
+    }
+
+    VTABLE void set_integer_native(INTVAL idx)
+    {
+        PARROT_MYSQLDATAROW(SELF)->row_index = idx;
+    }
+
+    VTABLE INTVAL get_integer()
+    {
+        return PARROT_MYSQLDATAROW(SELF)->row_index;
     }
 
     VTABLE void set_pmc(PMC *data)

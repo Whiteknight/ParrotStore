@@ -1,5 +1,7 @@
 #include "ps_mysql.h"
+
 #define GET_CONN(s) ((MYSQL*)PARROT_MYSQLDBCONTEXT(s)->conn)
+#define MYSQL_EXCEPTION(i, c) Parrot_ex_throw_from_c_args((i), NULL, 0, "MySql Error %u: %s\n", mysql_errno(c), mysql_error(c))
 
 pmclass MySQLDbContext dynpmc auto_attrs {
     ATTR void *conn;
@@ -31,19 +33,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
             Parrot_free_cstring(cdb);
 
         if (!stat)
-            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
-    }
-
-    METHOD query_no_result(STRING * query) {
-        MYSQL * const conn = GET_CONN(SELF);
-        INTVAL len = Parrot_str_byte_length(INTERP, query);
-        INTVAL stat;
-        STRING_TO_CSTRING(INTERP, query, cquery,
-            stat = mysql_real_query(conn, cquery, len);
-        );
-
-        if (stat)
-            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+            MYSQL_EXCEPTION(INTERP, conn);
     }
 
     METHOD query(STRING * query) {
@@ -55,12 +45,30 @@ pmclass MySQLDbContext dynpmc auto_attrs {
         );
 
         if (stat)
-            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "MySql Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+            MYSQL_EXCEPTION(INTERP, conn);
         else {
-            MYSQL_RES * const result = mysql_use_result(conn);
-            PMC * const table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
-            VTABLE_set_pointer(INTERP, table, result);
-            RETURN(PMC * table);
+            // TODO: Refactor all this
+            MYSQL_RES * const result = mysql_store_result(conn);
+            if (result) {
+                // It's a query with results, like a SELECT. Return a data table
+                // with the results
+                PMC * const table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
+                VTABLE_set_pointer(INTERP, table, result);
+                // TODO: Multiple result sets
+                RETURN(PMC *table);
+            } else {
+                if (mysql_field_count(conn) == 0) {
+                    // It was a query with no results, like INSERT, UPDATE or DELETE.
+                    // Return the number of affected rows
+                    const INTVAL num_rows = mysql_affected_rows(conn);
+                    RETURN(INTVAL num_rows);
+                } else {
+                    // The query should have returned data, but did not due to
+                    // an error. Alert the user.
+                    MYSQL_EXCEPTION(INTERP, conn);
+                }
+            }
         }
     }
 }
+
