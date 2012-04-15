@@ -6,7 +6,7 @@ pmclass MongoDbContext dynpmc auto_attrs {
     ATTR void *conn;
 
     VTABLE void init() {
-        mongo * conn = (mongo *)malloc(sizeof(conn));
+        mongo * conn = (mongo *)malloc(sizeof(mongo));
         PARROT_MONGODBCONTEXT(SELF)->conn = conn;
     }
 
@@ -21,10 +21,8 @@ pmclass MongoDbContext dynpmc auto_attrs {
     METHOD connect(STRING * server, INTVAL port)
     {
         mongo * conn = GET_CONN(SELF);
-        INTVAL stat;
-        STRING_TO_CSTRING(INTERP, server, cserver, {
-            stat = mongo_connect(conn, cserver, port);
-        });
+        char * const cserver = Parrot_str_to_cstring(INTERP, server);
+        INTVAL stat = mongo_connect(conn, cserver, port);
         if (stat) {
             switch(conn->err) {
                 case MONGO_CONN_NO_SOCKET:

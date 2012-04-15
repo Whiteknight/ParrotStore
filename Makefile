@@ -1,5 +1,4 @@
 all: memcached mysql mongodb
-	echo "MAKE ALL"
 
 clean: clean_memcached clean_mongodb clean_mysql
 
@@ -20,9 +19,7 @@ parrotstore/memcached.pbc: memcached/
 
 ## MongoDB
 
-mongodb: mongodb/*.winxed mongodb/pmc/*.pmc mongodb/include/*.h dynext/mongodb_group.so
-
-dynext/mongodb_group.so:
+mongodb:
 	winxed setup.winxed mongodb build
 
 clean_mongodb:

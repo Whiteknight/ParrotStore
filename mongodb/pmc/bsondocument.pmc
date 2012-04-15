@@ -57,7 +57,7 @@ pmclass BsonDocument dynpmc auto_attrs {
         );
     }
 
-    METHOD append_finish_object(STRING *name)
+    METHOD append_finish_object()
     {
         bson_append_finish_object(GET_BSON(SELF));
     }
