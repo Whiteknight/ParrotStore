@@ -1,3 +1,4 @@
+dynext/*
 parrotstore/*
 mongodb/pmc/*.c
 mongodb/pmc/*.o
