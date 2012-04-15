@@ -1,7 +1,7 @@
 #include "ps_mysql.h"
 
 #define GET_CONN(s) ((MYSQL*)PARROT_MYSQLDBCONTEXT(s)->conn)
-#define MYSQL_EXCEPTION(i, c) Parrot_ex_throw_from_c_args((i), NULL, 0, "MySql Error %u: %s\n", mysql_errno(c), mysql_error(c))
+#define MYSQL_EXCEPTION(i, c, x) Parrot_ex_throw_from_c_args((i), NULL, 0, "MySql Error %u at %s: %s\n", mysql_errno(c), (x), mysql_error(c))
 
 pmclass MySQLDbContext dynpmc auto_attrs {
     ATTR void *conn;
@@ -18,12 +18,20 @@ pmclass MySQLDbContext dynpmc auto_attrs {
             mysql_close(conn);
     }
 
-    METHOD connect(STRING *server, STRING *username, STRING *password, STRING *db, INTVAL port, INTVAL client_flag) {
+    METHOD connect(STRING *server, STRING *username, STRING *password, STRING *db,
+            INTVAL port :optional, INTVAL have_port :opt_flag,
+            INTVAL client_flag :optional, INTVAL have_flags :opt_flag)
+    {
         MYSQL * const conn = GET_CONN(SELF);
         char * const cserver = Parrot_str_to_cstring(INTERP, server);
         char * const cusername = Parrot_str_to_cstring(INTERP, username);
         char * const cpassword = Parrot_str_to_cstring(INTERP, password);
         char * const cdb = db == STRINGNULL ? NULL : Parrot_str_to_cstring(INTERP, db);
+
+        if (!have_flags)
+            client_flag = CLIENT_MULTI_STATEMENTS;
+        if (!have_port)
+            port = 0;
 
         INTVAL stat = mysql_real_connect(conn, cserver, cusername, cpassword, cdb, port, NULL, client_flag);
         Parrot_free_cstring(cserver);
@@ -33,7 +41,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
             Parrot_free_cstring(cdb);
 
         if (!stat)
-            MYSQL_EXCEPTION(INTERP, conn);
+            MYSQL_EXCEPTION(INTERP, conn, "connect");
     }
 
     METHOD query(STRING * query) {
@@ -45,17 +53,37 @@ pmclass MySQLDbContext dynpmc auto_attrs {
         );
 
         if (stat)
-            MYSQL_EXCEPTION(INTERP, conn);
+            MYSQL_EXCEPTION(INTERP, conn, "query");
         else {
             // TODO: Refactor all this
-            MYSQL_RES * const result = mysql_store_result(conn);
+            MYSQL_RES * result = mysql_store_result(conn);
             if (result) {
                 // It's a query with results, like a SELECT. Return a data table
                 // with the results
-                PMC * const table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
+                PMC * table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
                 VTABLE_set_pointer(INTERP, table, result);
                 mysql_free_result(result);
-                // TODO: Multiple result sets
+                if (mysql_more_results(conn)) {
+                    PMC * const set = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
+                    VTABLE_push_pmc(INTERP, set, table);
+                    // TODO: Can we capture errors from this?
+                    while(mysql_next_result(conn) == 0) {
+                        result = mysql_store_result(conn);
+                        if (result) {
+                            table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
+                            VTABLE_set_pointer(INTERP, table, result);
+                            mysql_free_result(result);
+                            VTABLE_push_pmc(INTERP, set, table);
+                        } else {
+                            if (mysql_field_count(conn) == 0) {
+                                // TODO: What here?
+                            } else {
+                                MYSQL_EXCEPTION(INTERP, conn, "read result set");
+                            }
+                        }
+                    }
+                    RETURN(PMC *set);
+                }
                 RETURN(PMC *table);
             } else {
                 if (mysql_field_count(conn) == 0) {
@@ -66,7 +94,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
                 } else {
                     // The query should have returned data, but did not due to
                     // an error. Alert the user.
-                    MYSQL_EXCEPTION(INTERP, conn);
+                    MYSQL_EXCEPTION(INTERP, conn, "read result table");
                 }
             }
         }
