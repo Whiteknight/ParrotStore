@@ -11,16 +11,22 @@ pmclass MongoDbContext dynpmc auto_attrs {
     }
 
     VTABLE void destroy() {
-        mongo * conn = GET_CONN(SELF);
+        mongo * const conn = GET_CONN(SELF);
         if (conn) {
             mongo_destroy(conn);
             free(conn);
         }
     }
 
+    VTABLE INTVAL get_bool()
+    {
+        mongo * const conn = GET_CONN(SELF);
+        return mongo_check_connection(conn) == MONGO_OK;
+    }
+
     METHOD connect(STRING * server, INTVAL port)
     {
-        mongo * conn = GET_CONN(SELF);
+        mongo * const conn = GET_CONN(SELF);
         char * const cserver = Parrot_str_to_cstring(INTERP, server);
         INTVAL stat = mongo_connect(conn, cserver, port);
         if (stat) {
@@ -35,9 +41,16 @@ pmclass MongoDbContext dynpmc auto_attrs {
         }
     }
 
+    METHOD disconnect()
+    {
+        mongo * const conn = GET_CONN(SELF);
+        if (mongo_check_connection(conn) == MONGO_OK)
+            mongo_disconnect(conn);
+    }
+
     METHOD insert(STRING *collection, PMC * bson_doc)
     {
-        mongo * conn = GET_CONN(SELF);
+        mongo * const conn = GET_CONN(SELF);
         INTVAL stat;
         STRING_TO_CSTRING(INTERP, collection, cc,
             stat = mongo_insert(conn, cc, VTABLE_get_pointer(INTERP, bson_doc));
