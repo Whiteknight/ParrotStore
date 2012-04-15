@@ -1,6 +1,6 @@
 all: memcached mysql
 
-clean: clean_memcached clean_mongodb
+clean: clean_memcached clean_mongodb clean_mysql
 
 install: install_memcached install_mongodb
 
