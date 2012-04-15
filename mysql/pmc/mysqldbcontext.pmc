@@ -54,6 +54,7 @@ pmclass MySQLDbContext dynpmc auto_attrs {
                 // with the results
                 PMC * const table = Parrot_pmc_new(INTERP, MySqlDataTable_type);
                 VTABLE_set_pointer(INTERP, table, result);
+                mysql_free_result(result);
                 // TODO: Multiple result sets
                 RETURN(PMC *table);
             } else {

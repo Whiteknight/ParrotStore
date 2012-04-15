@@ -1,22 +1,11 @@
 #include "ps_mysql.h"
 #define GET_RESULT(s) ((MYSQL_RES*)PARROT_MYSQLDATATABLE(s)->result)
-#define GET_COLNAMES(s) (PARROT_MYSQLDATATABLE(s)->colnames)
-#define FETCH_NEXT_ROW(a) do { \
-    MYSQL_RES * const __result = (MYSQL_RES*)(a)->result; \
-    (a)->current_row = mysql_fetch_row(__result); \
-    (a)->current_row_lengths = mysql_fetch_lengths(__result); \
-    (a)->current_row_idx = (a)->current_row_idx + 1; \
-} while(0)
 
 INTVAL MySqlDataTable_type;
 
 pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
     ATTR Hash *colnames;
-    ATTR void *result;
-    ATTR void *current_row;
-    ATTR void *current_row_lengths;
-    ATTR INTVAL num_fields;
-    ATTR INTVAL current_row_idx;
+    ATTR PMC *rows;
 
     void class_init() {
         MySqlDataTable_type = entry;
@@ -24,7 +13,7 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
 
     VTABLE void init()
     {
-        PObj_custom_mark_destroy_SETALL(SELF);
+        PObj_custom_mark_SET(SELF);
     }
 
     VTABLE void set_pointer(void *rawptr)
@@ -33,65 +22,48 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
         MYSQL_RES * const result = (MYSQL_RES*)rawptr;
         INTVAL num_fields = mysql_num_fields(result);
         Hash * const colnames = Parrot_hash_create_sized(INTERP, enum_hash_int, Hash_key_type_STRING, num_fields);
-        MYSQL_FIELD *field;
+        PMC * const rows = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
 
-        INTVAL idx = 0;
-        while(field = mysql_fetch_field(result)) {
-            STRING * const colnamestr = Parrot_str_new(INTERP, field->name, 0);
-            Parrot_hash_put(INTERP, colnames, (void*)colnamestr, (void*)idx);
-            idx++;
+        {
+            MYSQL_FIELD *field;
+            INTVAL idx = 0;
+            while(field = mysql_fetch_field(result)) {
+                STRING * const colnamestr = Parrot_str_new(INTERP, field->name, 0);
+                Parrot_hash_put(INTERP, colnames, (void*)colnamestr, (void*)idx);
+                idx++;
+            }
+            attrs->colnames = colnames;
         }
 
-        attrs->colnames = colnames;
-        attrs->result = rawptr;
-        attrs->num_fields = num_fields;
-        attrs->current_row_idx = -1;
-        FETCH_NEXT_ROW(attrs);
+        {
+            MYSQL_ROW row;
+            INTVAL row_idx = 0;
+            while (row = mysql_fetch_row(result)) {
+                unsigned long * field_lengths = mysql_fetch_lengths(result);
+                PMC * const rowpmc = Parrot_pmc_new_init(INTERP, MySqlDataRow_type, SELF);
+                PMC * const data = Parrot_pmc_new_init_int(INTERP, enum_class_FixedStringArray, num_fields);
+                INTVAL i = 0;
+                for (; i < num_fields; i++) {
+                    STRING * const field_val = Parrot_str_new_init(INTERP, row[i], (INTVAL)field_lengths[i], Parrot_binary_encoding_ptr, 0);
+                    VTABLE_set_string_keyed_int(INTERP, data, i, field_val);
+                }
+                VTABLE_set_pmc(INTERP, rowpmc, data);
+                VTABLE_set_integer_native(INTERP, rowpmc, row_idx);
+                row_idx++;
+                VTABLE_push_pmc(INTERP, rows, rowpmc);
+            }
+        }
+
+        attrs->rows = rows;
     }
 
     VTABLE void mark()
     {
-        Hash * const colnames = GET_COLNAMES(SELF);
-        if (colnames)
-            Parrot_hash_mark(INTERP, colnames);
-    }
-
-    VTABLE void destroy()
-    {
-        MYSQL_RES * const result = GET_RESULT(SELF);
-        if (result)
-            mysql_free_result(result);
-    }
-
-    VTABLE INTVAL get_bool()
-    {
-        return PARROT_MYSQLDATATABLE(SELF)->current_row != NULL;
-    }
-
-    VTABLE PMC* shift_pmc()
-    {
         Parrot_MySqlDataTable_attributes * const attrs = PARROT_MYSQLDATATABLE(SELF);
-        if (!attrs->current_row)
-            return PMCNULL;
-        else {
-            MYSQL_ROW row = attrs->current_row;
-            unsigned long * field_lengths = PARROT_MYSQLDATATABLE(SELF)->current_row_lengths;
-            INTVAL num_fields = PARROT_MYSQLDATATABLE(SELF)->num_fields;
-            PMC * const rowpmc = Parrot_pmc_new_init(INTERP, MySqlDataRow_type, SELF);
-            PMC * const data = Parrot_pmc_new_init_int(INTERP, enum_class_FixedStringArray, num_fields);
-            const INTVAL row_idx = attrs->current_row_idx;
-            INTVAL i = 0;
-            for (; i < num_fields; i++) {
-                STRING * const field_val = Parrot_str_new_init(INTERP, row[i], (INTVAL)field_lengths[i], Parrot_binary_encoding_ptr, 0);
-                VTABLE_set_string_keyed_int(INTERP, data, i, field_val);
-            }
-            VTABLE_set_pmc(INTERP, rowpmc, data);
-            VTABLE_set_integer_native(INTERP, rowpmc, row_idx);
-
-            // Now update with new values for next time
-            FETCH_NEXT_ROW(attrs);
-            return rowpmc;
-        }
+        if (!PMC_IS_NULL(attrs->colnames))
+            Parrot_hash_mark(INTERP, attrs->colnames);
+        if (!PMC_IS_NULL(attrs->rows))
+            Parrot_gc_mark_PMC_alive(INTERP, attrs->rows);
     }
 
     VTABLE INTVAL get_integer_keyed_str(STRING *colname)
@@ -101,13 +73,7 @@ pmclass MySqlDataTable dynpmc auto_attrs provides iterator {
 
     VTABLE PMC *get_iter()
     {
-        return SELF;
-    }
-
-    VTABLE void set_integer_native(INTVAL iter_dir)
-    {
-        // This is necessary for the iterator interface
-        UNUSED(iter_dir);
+        return Parrot_pmc_new_init(INTERP, enum_class_ArrayIterator, PARROT_MYSQLDATATABLE(SELF)->rows);
     }
 
     VTABLE void *get_pointer_keyed(PMC *row)

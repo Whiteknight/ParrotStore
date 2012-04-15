@@ -30,9 +30,9 @@ install_mongodb:
 
 # MySQL
 
-mysql: mysql/pmc/*.pmc mysql/include/*.h dynext/mysql_group.so
+mysql: dynext/mysql_group.so
 
-dynext/mysql_group.so:
+dynext/mysql_group.so: mysql/pmc/mysqldbcontext.pmc mysql/pmc/mysqldatatable.pmc mysql/pmc/mysqldatarow.pmc mysql/include/ps_mysql.h
 	winxed setup.winxed mysql build
 
 clean_mysql:
