@@ -6,7 +6,8 @@ install: install_memcached install_mysql install_mongodb install_sqlite
 
 ## Memcached
 
-memcached: parrotstore/memcached.pbc
+memcached:
+	winxed src/setup.winxed memcached build
 
 clean_memcached:
 	winxed src/setup.winxed memcached clean
@@ -14,8 +15,6 @@ clean_memcached:
 install_memcached:
 	winxed src/setup.winxed memcached install
 
-parrotstore/memcached.pbc:
-	winxed src/setup.winxed memcached build
 
 ## MongoDB
 
