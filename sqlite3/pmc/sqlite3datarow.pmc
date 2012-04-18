@@ -1,0 +1,96 @@
+#include "ps_sqlite3.h"
+
+INTVAL SQLite3DataRow_type;
+
+pmclass SQLite3DataRow dynpmc auto_attrs provides array provides hash {
+    ATTR PMC *table;
+    ATTR PMC *data;
+    ATTR INTVAL row_index;
+
+    void class_init() {
+        SQLite3DataRow_type = entry;
+    }
+
+    VTABLE void init_pmc(PMC *table)
+    {
+        PARROT_SQLITE3DATAROW(SELF)->table = table;
+        PARROT_SQLITE3DATAROW(SELF)->data = Parrot_pmc_new(INTERP, enum_class_ResizableStringArray);
+        PObj_custom_mark_SET(SELF);
+    }
+
+    VTABLE void mark()
+    {
+        Parrot_SQLite3DataRow_attributes * const attr = PARROT_SQLITE3DATAROW(SELF);
+        if (!PMC_IS_NULL(attr->table))
+            Parrot_gc_mark_PMC_alive(INTERP, attr->table);
+        if (!PMC_IS_NULL(attr->data))
+            Parrot_gc_mark_PMC_alive(INTERP, attr->data);
+    }
+
+    VTABLE void set_integer_native(INTVAL idx)
+    {
+        PARROT_SQLITE3DATAROW(SELF)->row_index = idx;
+    }
+
+    VTABLE INTVAL get_integer()
+    {
+        return PARROT_SQLITE3DATAROW(SELF)->row_index;
+    }
+
+    VTABLE void set_string_keyed_int(INTVAL idx, STRING *str)
+    {
+        VTABLE_set_string_keyed_int(INTERP, PARROT_SQLITE3DATAROW(SELF)->data, idx, str);
+    }
+
+    VTABLE STRING * get_string_keyed_int(INTVAL idx)
+    {
+        return VTABLE_get_string_keyed_int(INTERP, PARROT_SQLITE3DATAROW(SELF)->data, idx);
+    }
+
+    VTABLE STRING * get_string_keyed_str(STRING *colname)
+    {
+        const INTVAL idx = VTABLE_get_integer_keyed_str(INTERP, PARROT_SQLITE3DATAROW(SELF)->table, colname);
+        return VTABLE_get_string_keyed_int(INTERP, SELF, idx);
+    }
+
+    VTABLE STRING * get_string_keyed(PMC *key)
+    {
+        STRING * const colname = VTABLE_get_string(INTERP, key);
+        return VTABLE_get_string_keyed_str(INTERP, SELF, colname);
+    }
+
+    VTABLE PMC *get_pmc_keyed(PMC *key)
+    {
+        STRING * const colname = VTABLE_get_string(INTERP, key);
+        return VTABLE_get_pmc_keyed_str(INTERP, SELF, colname);
+    }
+
+    VTABLE PMC * get_pmc_keyed_str(STRING *colname)
+    {
+        STRING * const value = VTABLE_get_string_keyed_str(INTERP, SELF, colname);
+        return Parrot_pmc_box_string(INTERP, value);
+    }
+
+    VTABLE PMC *get_pmc_keyed_int(INTVAL idx)
+    {
+        STRING * const value = VTABLE_get_string_keyed_int(INTERP, SELF, idx);
+        return Parrot_pmc_box_string(INTERP, value);
+    }
+
+    VTABLE INTVAL elements()
+    {
+        return VTABLE_elements(INTERP, PARROT_SQLITE3DATAROW(SELF)->data);
+    }
+
+    VTABLE PMC *get_iter()
+    {
+        return Parrot_pmc_new_init(INTERP, enum_class_HashIterator, SELF);
+    }
+
+    VTABLE void * get_pointer()
+    {
+        // Return a pointer to the Hash* representing the column hash. Currently
+        // we get that from the table. This interface is required by HashIterator.
+        return VTABLE_get_pointer_keyed(INTERP, PARROT_SQLITE3DATAROW(SELF)->table, SELF);
+    }
+}

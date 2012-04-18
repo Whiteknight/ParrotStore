@@ -1,8 +1,8 @@
-all: memcached mysql mongodb
+all: memcached mysql mongodb sqlite3
 
-clean: clean_memcached clean_mongodb clean_mysql
+clean: clean_memcached clean_mongodb clean_mysql clean_sqlite
 
-install: install_memcached install_mysql install_mongodb
+install: install_memcached install_mysql install_mongodb install_sqlite
 
 ## Memcached
 
@@ -28,7 +28,7 @@ clean_mongodb:
 install_mongodb:
 	winxed setup.winxed mongodb install
 
-# MySQL
+## MySQL
 
 mysql: dynext/mysql_group.so
 
@@ -41,4 +41,16 @@ clean_mysql:
 install_mysql:
 	winxed setup.winxed mysql install
 
+## SQLite
+
+sqlite3: dynext/sqlite3_group.so
+
+dynext/sqlite3_group.so: sqlite3/pmc/sqlite3dbcontext.pmc sqlite3/pmc/sqlite3datatable.pmc sqlite3/pmc/sqlite3datarow.pmc sqlite3/include/ps_sqlite3.h
+	winxed setup.winxed sqlite3 build
+
+clean_sqlite3:
+	winxed setup.winxed sqlite3 clean
+
+install_sqlite3:
+	winxed setup.winxed sqlite3 install
 

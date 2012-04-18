@@ -8,3 +8,7 @@ mysql/pmc/*.c
 mysql/pmc/*.o
 mysql/pmc/*.dump
 mysql/pmc/*.h
+sqlite3/pmc/*.c
+sqlite3/pmc/*.o
+sqlite3/pmc/*.h
+sqlite3/pmc/*.dump

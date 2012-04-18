@@ -1,0 +1,94 @@
+#include "ps_sqlite3.h"
+
+#define GET_DB(s) ((sqlite3*)PARROT_SQLITE3DBCONTEXT(s)->db)
+
+static int
+sqlite_callback(void *_rawcbargs, int argc, char **argv, char **azColName)
+{
+    SQLite3_cb_args * const args = (SQLite3_cb_args*)_rawcbargs;
+    PMC * const self = args->self;
+    PMC * const table = args->table;
+    Interp * const interp = args->interp;
+    INTVAL idx;
+
+    PMC * const row = Parrot_pmc_new_init(interp, SQLite3DataRow_type, table);
+    VTABLE_set_integer_native(interp, row, args->row_idx);
+    args->row_idx++;
+
+    if (!args->have_colnames) {
+        Hash * const colnames = Parrot_hash_create_sized(interp, enum_hash_int, Hash_key_type_STRING, argc);
+
+        for (idx = 0 ; idx < argc; idx++) {
+            STRING * const colnamestr = Parrot_str_new(interp, azColName[idx], 0);
+            Parrot_hash_put(interp, colnames, (void*)colnamestr, (void*)idx);
+        }
+        VTABLE_set_pointer(interp, table, (void*)colnames);
+        args->have_colnames = 1;
+    }
+
+    for (idx = 0; idx < argc; idx++) {
+        // TODO: Double-check encoding, we might need to assume this is binary
+        STRING * const value = Parrot_str_new(interp, argv[idx], 0);
+        VTABLE_set_string_keyed_int(interp, row, idx, value);
+    }
+
+    VTABLE_push_pmc(interp, table, row);
+}
+
+pmclass SQLite3DbContext dynpmc auto_attrs {
+    ATTR void *db;
+
+    VTABLE void init() {
+        PARROT_SQLITE3DBCONTEXT(SELF)->db = NULL;
+        PObj_custom_destroy_SET(SELF);
+    }
+
+    VTABLE void destroy() {
+        sqlite3 * const db = GET_DB(SELF);
+        if (db)
+            sqlite3_close(db);
+    }
+
+    METHOD open(STRING *file)
+    {
+        sqlite3 * db;
+        int rc = 0;
+        STRING_TO_CSTRING(INTERP, file, cfile,
+            rc = sqlite3_open(cfile, &db);
+        );
+        if (rc)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "SQLite Error during db open: %s", sqlite3_errmsg(db));
+
+        PARROT_SQLITE3DBCONTEXT(SELF)->db = db;
+    }
+
+    METHOD query(STRING * query) {
+        sqlite3 * const db = GET_DB(SELF);
+        SQLite3_cb_args * args;
+        PMC * const table = Parrot_pmc_new(INTERP, SQLite3DataTable_type);
+        int rc;
+        char * err_msg = NULL;
+
+        ALLOC_CB_ARGS(args, INTERP, SELF, table);
+
+        STRING_TO_CSTRING(INTERP, query, cquery,
+            rc = sqlite3_exec(db, cquery, sqlite_callback, args, &err_msg);
+        );
+
+        if (rc != SQLITE_OK) {
+            STRING * const err_str = Parrot_str_new(INTERP, err_msg, 0);
+            sqlite3_free(err_msg);
+            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "SQLite Error during db open: %Ss", err_msg);
+        }
+
+        FREE_CB_ARGS(args);
+        RETURN(PMC * table);
+    }
+
+    METHOD close()
+    {
+        sqlite3 * const db = GET_DB(SELF);
+        if (db)
+            sqlite3_close(db);
+    }
+}

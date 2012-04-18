@@ -26,7 +26,7 @@ function setup_mysql(var parrotstore, var argv)
 
 function setup_mongodb(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g -I./mongodb/mongo-c-driver/src -I./mongodb/include";
+    parrotstore["dynpmc_cflags"] = "-g -I./mongodb/include";
     parrotstore["dynpmc_ldflags"] = "-lbson -lmongoc";
     parrotstore["dynpmc"]["mongodb_group"] = [
         "mongodb/pmc/mongodbcontext.pmc",
@@ -41,6 +41,17 @@ function setup_mongodb(var parrotstore, var argv)
     //parrotstore["inst_lib"].push("parrotstore/mongodb.pbc");
 }
 
+function setup_sqlite(var parrotstore, var argv)
+{
+    parrotstore["dynpmc_cflags"] = "-g -I./sqlite3/include";
+    parrotstore["dynpmc_ldflags"] = "-lsqlite3";
+    parrotstore["dynpmc"]["sqlite3_group"] = [
+        "sqlite3/pmc/sqlite3dbcontext.pmc",
+        "sqlite3/pmc/sqlite3datatable.pmc",
+        "sqlite3/pmc/sqlite3datarow.pmc"
+    ];
+}
+
 function setup_main(var parrotstore, string target, var argv)
 {
     switch (target) {
@@ -53,6 +64,11 @@ function setup_main(var parrotstore, string target, var argv)
         case "mysql":
             setup_mysql(parrotstore, argv);
             break;
+        case "sqlite3":
+            setup_sqlite(parrotstore, argv);
+            break;
+        default:
+            die("Unknown make target " + target);
     }
 }
 
