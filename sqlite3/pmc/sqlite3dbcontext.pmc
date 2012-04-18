@@ -65,11 +65,14 @@ pmclass SQLite3DbContext dynpmc auto_attrs {
     METHOD query(STRING * query) {
         sqlite3 * const db = GET_DB(SELF);
         SQLite3_cb_args * args;
-        PMC * const table = Parrot_pmc_new(INTERP, SQLite3DataTable_type);
+        PMC * table = Parrot_pmc_new(INTERP, SQLite3DataTable_type);
         int rc;
         char * err_msg = NULL;
 
         ALLOC_CB_ARGS(args, INTERP, SELF, table);
+
+        // TODO: We probably should split on ';' and execute each query
+        // individually
 
         STRING_TO_CSTRING(INTERP, query, cquery,
             rc = sqlite3_exec(db, cquery, sqlite_callback, args, &err_msg);

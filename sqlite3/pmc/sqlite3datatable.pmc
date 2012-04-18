@@ -12,6 +12,8 @@ pmclass SQLite3DataTable dynpmc auto_attrs provides iterator {
 
     VTABLE void init()
     {
+        PMC * const rows = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
+        PARROT_SQLITE3DATATABLE(SELF)->rows = rows;
         PObj_custom_mark_SET(SELF);
     }
 
@@ -20,11 +22,7 @@ pmclass SQLite3DataTable dynpmc auto_attrs provides iterator {
         Hash * const colnames = (Hash*)rawptr;
         if (!colnames)
             Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "SQLite: Null column names hash");
-        else {
-            PMC * const rows = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
-            PARROT_SQLITE3DATATABLE(SELF)->colnames = colnames;
-            PARROT_SQLITE3DATATABLE(SELF)->rows = rows;
-        }
+        PARROT_SQLITE3DATATABLE(SELF)->colnames = colnames;
     }
 
     VTABLE void mark()
@@ -34,6 +32,12 @@ pmclass SQLite3DataTable dynpmc auto_attrs provides iterator {
             Parrot_hash_mark(INTERP, attrs->colnames);
         if (!PMC_IS_NULL(attrs->rows))
             Parrot_gc_mark_PMC_alive(INTERP, attrs->rows);
+    }
+
+    VTABLE INTVAL elements()
+    {
+        PMC * const rows = PARROT_SQLITE3DATATABLE(SELF)->rows;
+        return VTABLE_elements(INTERP, rows);
     }
 
     VTABLE void push_pmc(PMC * row)
@@ -53,7 +57,8 @@ pmclass SQLite3DataTable dynpmc auto_attrs provides iterator {
 
     VTABLE PMC *get_iter()
     {
-        return Parrot_pmc_new_init(INTERP, enum_class_ArrayIterator, PARROT_SQLITE3DATATABLE(SELF)->rows);
+        PMC * const rows = PARROT_SQLITE3DATATABLE(SELF)->rows;
+        return Parrot_pmc_new_init(INTERP, enum_class_ArrayIterator, rows);
     }
 
     VTABLE void *get_pointer_keyed(PMC * row)
