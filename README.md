@@ -5,6 +5,8 @@ mechanisms, caches, and databases.
 ParrotStore requires Parrot, Winxed and Rosella. Make sure you have all these
 things built and installed on your system.
 
+# Sub-Libraries
+
 ## Memcached
 
 To build memcached library:
@@ -26,7 +28,7 @@ To build the MySQL bindings:
     make mysql
     make install_mysql
 
-# MongoDB
+## MongoDB
 
 You must have the MongoDB C Driver installed on your system. Here's the
 incantation I used to get it, your mileage may vary:
@@ -45,4 +47,16 @@ To build the MongoDB bindings:
     make mongodb
     make install_mongodb
 
+## SQLite3
+
+You have have the libsqlite3 and libsqlite3-dev packages installed. I did this:
+
+    apt-get install libsqlite3-0 libsqlite3-dev sqlite3
+
+That also gives you the commandline client for testing.
+
+To build the sqlite3 bindings:
+
+    make sqlite3
+    make install_sqlite3
 
