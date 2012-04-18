@@ -4,9 +4,9 @@ $include "Rosella/Winxed.winxed";
 function setup_memcached(var parrotstore, var argv)
 {
     parrotstore["winxed_winxed"]["parrotstore/memcached.winxed"] = [
-        "memcached/Includes.winxed",
-        "memcached/Memcached.winxed",
-        "memcached/ServerList.winxed"
+        "src/memcached/Includes.winxed",
+        "src/memcached/Memcached.winxed",
+        "src/memcached/ServerList.winxed"
     ];
     parrotstore["pir_winxed"]["parrotstore/memcached.pir"] = "parrotstore/memcached.winxed";
     parrotstore["pbc_pir"]["parrotstore/memcached.pbc"] = "parrotstore/memcached.pir";
@@ -15,22 +15,22 @@ function setup_memcached(var parrotstore, var argv)
 
 function setup_mysql(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g -I./mysql/include";
+    parrotstore["dynpmc_cflags"] = "-g -I./src/mysql/include";
     parrotstore["dynpmc_ldflags"] = "-lmysqlclient";
     parrotstore["dynpmc"]["mysql_group"] = [
-        "mysql/pmc/mysqldbcontext.pmc",
-        "mysql/pmc/mysqldatatable.pmc",
-        "mysql/pmc/mysqldatarow.pmc"
+        "src/mysql/pmc/mysqldbcontext.pmc",
+        "src/mysql/pmc/mysqldatatable.pmc",
+        "src/mysql/pmc/mysqldatarow.pmc"
     ];
 }
 
 function setup_mongodb(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g -I./mongodb/include";
+    parrotstore["dynpmc_cflags"] = "-g -I./src/mongodb/include";
     parrotstore["dynpmc_ldflags"] = "-lbson -lmongoc";
     parrotstore["dynpmc"]["mongodb_group"] = [
-        "mongodb/pmc/mongodbcontext.pmc",
-        "mongodb/pmc/bsondocument.pmc"
+        "src/mongodb/pmc/mongodbcontext.pmc",
+        "src/mongodb/pmc/bsondocument.pmc"
     ];
     //parrotstore["winxed_winxed"]["parrotstore/mongodb.winxed"] = [
     //    "mongodb/Includes.winxed",
@@ -43,12 +43,12 @@ function setup_mongodb(var parrotstore, var argv)
 
 function setup_sqlite(var parrotstore, var argv)
 {
-    parrotstore["dynpmc_cflags"] = "-g -I./sqlite3/include";
+    parrotstore["dynpmc_cflags"] = "-g -I./src/sqlite3/include";
     parrotstore["dynpmc_ldflags"] = "-lsqlite3";
     parrotstore["dynpmc"]["sqlite3_group"] = [
-        "sqlite3/pmc/sqlite3dbcontext.pmc",
-        "sqlite3/pmc/sqlite3datatable.pmc",
-        "sqlite3/pmc/sqlite3datarow.pmc"
+        "src/sqlite3/pmc/sqlite3dbcontext.pmc",
+        "src/sqlite3/pmc/sqlite3datatable.pmc",
+        "src/sqlite3/pmc/sqlite3datarow.pmc"
     ];
 }
 
