@@ -3,7 +3,7 @@
 #define GET_DB(s) ((sqlite3*)PARROT_SQLITE3DBCONTEXT(s)->db)
 
 static int
-sqlite_callback(void *_rawcbargs, int argc, char **argv, char **azColName)
+ps_sqlite_callback(void *_rawcbargs, int argc, char **argv, char **azColName)
 {
     SQLite3_cb_args * const args = (SQLite3_cb_args*)_rawcbargs;
     PMC * const self = args->self;
@@ -35,6 +35,31 @@ sqlite_callback(void *_rawcbargs, int argc, char **argv, char **azColName)
     VTABLE_push_pmc(interp, table, row);
 }
 
+static PMC *
+ps_sqlite_execute_query(PARROT_INTERP, PMC * self, STRING *query)
+{
+    SQLite3_cb_args * args;
+    sqlite3 * const db = GET_DB(self);
+    PMC * const table = Parrot_pmc_new(interp, SQLite3DataTable_type);
+    int rc;
+    char * err_msg = NULL;
+
+    ALLOC_CB_ARGS(args, interp, self, table);
+
+    STRING_TO_CSTRING(interp, query, cquery,
+        rc = sqlite3_exec(db, cquery, ps_sqlite_callback, args, &err_msg);
+    );
+
+    if (rc != SQLITE_OK) {
+        STRING * const err_str = Parrot_str_new(interp, err_msg, 0);
+        sqlite3_free(err_msg);
+        Parrot_ex_throw_from_c_args(interp, NULL, 0, "SQLite Error during db open: %Ss", err_msg);
+    }
+
+    FREE_CB_ARGS(args);
+    return table;
+}
+
 pmclass SQLite3DbContext dynpmc auto_attrs {
     ATTR void *db;
 
@@ -63,29 +88,37 @@ pmclass SQLite3DbContext dynpmc auto_attrs {
     }
 
     METHOD query(STRING * query) {
-        sqlite3 * const db = GET_DB(SELF);
-        SQLite3_cb_args * args;
-        PMC * table = Parrot_pmc_new(INTERP, SQLite3DataTable_type);
-        int rc;
-        char * err_msg = NULL;
+        STRING * const semicolon = Parrot_str_new(INTERP, ";", 0);
+        if (Parrot_str_find_index(INTERP, query, semicolon, 0) != -1) {
+            PMC * const queries = Parrot_str_split(INTERP, semicolon, query);
+            INTVAL num_queries = VTABLE_elements(INTERP, queries);
+            PMC * const set = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
+            INTVAL i;
 
-        ALLOC_CB_ARGS(args, INTERP, SELF, table);
-
-        // TODO: We probably should split on ';' and execute each query
-        // individually
-
-        STRING_TO_CSTRING(INTERP, query, cquery,
-            rc = sqlite3_exec(db, cquery, sqlite_callback, args, &err_msg);
-        );
-
-        if (rc != SQLITE_OK) {
-            STRING * const err_str = Parrot_str_new(INTERP, err_msg, 0);
-            sqlite3_free(err_msg);
-            Parrot_ex_throw_from_c_args(INTERP, NULL, 0, "SQLite Error during db open: %Ss", err_msg);
+            for (i = 0; i < num_queries; i++) {
+                STRING * const query = VTABLE_get_string_keyed_int(INTERP, queries, i);
+                INTVAL const query_length = Parrot_str_length(INTERP, query);
+                // If the query is empty or is all whitespace, don't bother.
+                INTVAL const first_non_whitespace = Parrot_str_find_not_cclass(INTERP, enum_cclass_whitespace, query, 0, query_length);
+                fprintf(stderr, "First not whitespace: %d (%d)\n", first_non_whitespace, query_length);
+                if (first_non_whitespace < query_length) {
+                    fprintf(stderr, "Performing query\n");
+                    PMC * const table = ps_sqlite_execute_query(INTERP, SELF, query);
+                    VTABLE_push_pmc(INTERP, set, table);
+                }
+            }
+            // If we only have one query, just return that one table.
+            fprintf(stderr, "tables in set: %d\n", VTABLE_elements(INTERP, set));
+            if (VTABLE_elements(INTERP, set) == 1) {
+                PMC * const table = VTABLE_get_pmc_keyed_int(INTERP, set, 0);
+                RETURN(PMC * table);
+            }
+            // If we have zero or more than one, return the whole set.
+            RETURN(PMC * set);
+        } else {
+            PMC * const table = ps_sqlite_execute_query(INTERP, SELF, query);
+            RETURN(PMC * table);
         }
-
-        FREE_CB_ARGS(args);
-        RETURN(PMC * table);
     }
 
     METHOD close()
